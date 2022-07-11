@@ -82,6 +82,7 @@ public:
     wlr_surface*            m_pLastFocus = nullptr;
     CWindow*                m_pLastWindow = nullptr;
     SMonitor*               m_pLastMonitor = nullptr;
+    CWorkspace*             m_pLastWorkspace = nullptr;
     
     SSeat                   m_sSeat;
 
@@ -113,6 +114,7 @@ public:
     CWorkspace*             getWorkspaceByName(const std::string&);
     CWorkspace*             getWorkspaceByString(const std::string&);
     void                    changeWorkspace(const int& targetWorkspaceID, const std::string& targetWorkspaceName);
+    void                    changeToLastWorkspace();
     void                    sanityCheckWorkspaces();
     int                     getWindowsOnWorkspace(const int&);
     CWindow*                getFirstWindowOnWorkspace(const int&);

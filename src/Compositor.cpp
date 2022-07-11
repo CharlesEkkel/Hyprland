@@ -1,4 +1,6 @@
 #include "Compositor.hpp"
+#include "src/debug/Log.hpp"
+#include "src/helpers/Workspace.hpp"
 
 CCompositor::CCompositor() {
     m_szInstanceSignature = GIT_COMMIT_HASH + std::string("_") + std::to_string(time(NULL));
@@ -695,6 +697,10 @@ void CCompositor::changeWorkspace(const int& TARGET_ID, const std::string& TARGE
     CWorkspace *const P_SOURCE = getWorkspaceByID(P_SOURCE_MONITOR->activeWorkspace);
     CWorkspace *const P_TARGET = getWorkspaceByID(TARGET_ID);
 
+    // No matter what, remember the previous workspace, since we always switch
+    // (to either an existing or new workspace).
+    m_pLastWorkspace = P_SOURCE;
+
     // Warp to the target workspace immediately, if it exists.
     if (P_TARGET) {
         SMonitor *const P_TARGET_MONITOR = getMonitorFromID(P_TARGET->m_iMonitorID);
@@ -800,6 +806,19 @@ void CCompositor::changeWorkspace(const int& TARGET_ID, const std::string& TARGE
     Debug::log(LOG, "Created and switched to workspace %i", P_CREATED_TARGET->m_iID);
 
     return;
+}
+
+/**
+ * @brief Switch to the last workspace visited before the current one, doing nothing
+ * if no workspaces have yet been visited.
+ */
+void CCompositor::changeToLastWorkspace() {
+    if (m_pLastWorkspace) {
+        Debug::log(LOG, "Switching to previous workspace %i", m_pLastWorkspace->m_iID);
+        changeWorkspace(m_pLastWorkspace->m_iID, m_pLastWorkspace->m_szName);
+    }
+    else
+        Debug::log(LOG, "Tried to switch to non-existent previous workpace (no history)");
 }
 
 void CCompositor::sanityCheckWorkspaces() {

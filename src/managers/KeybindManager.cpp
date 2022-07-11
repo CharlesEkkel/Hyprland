@@ -1,4 +1,5 @@
 #include "KeybindManager.hpp"
+#include "src/Compositor.hpp"
 
 #include <regex>
 
@@ -250,6 +251,14 @@ void CKeybindManager::toggleActivePseudo(std::string args) {
 }
 
 void CKeybindManager::changeworkspace(std::string args) {
+    if (args == "previous") {
+        g_pCompositor->changeToLastWorkspace();
+        return;
+    }
+
+    // If the above if-statement didn't trigger, then the user is trying to
+    // go to an arbitrary workspace.
+
     int workspaceToChangeTo = 0;
     std::string workspaceName = "";
 
