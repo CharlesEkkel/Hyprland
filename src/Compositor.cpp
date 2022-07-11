@@ -691,16 +691,23 @@ CWorkspace* CCompositor::getWorkspaceByID(const int& id) {
  * @param TARGET_WORKSPACE_NAME Name of target workspace, only needed if the 
  * workspace doesn't yet exist.
  */
-void CCompositor::changeWorkspace(const int TARGET_ID, const std::string& TARGET_WORKSPACE_NAME) {
+void CCompositor::changeWorkspace(const int TENTATIVE_TARGET_ID, const std::string& TARGET_WORKSPACE_NAME) {
 
     SMonitor *const P_SOURCE_MONITOR = getMonitorFromCursor();
-
     CWorkspace *const P_SOURCE = getWorkspaceByID(P_SOURCE_MONITOR->activeWorkspace);
+
+    // If the target is the workspace we're already at, then depending on whether automatic
+    // back and forth switching is enabled, we will go to the previous workspace instead.
+    const int TARGET_ID =
+        m_bAutoBackAndForth && P_SOURCE->m_iID == TENTATIVE_TARGET_ID
+        ? m_iLastWorkspaceID
+        : TENTATIVE_TARGET_ID;
+
     CWorkspace *const P_TARGET = getWorkspaceByID(TARGET_ID);
 
     // No matter what, remember the previous workspace, since we always switch
     // (to either an existing or new workspace).
-    m_pLastWorkspaceID = P_SOURCE->m_iID;
+    m_iLastWorkspaceID = P_SOURCE->m_iID;
 
     // Warp to the target workspace immediately, if it exists.
     if (P_TARGET) {
@@ -815,10 +822,10 @@ void CCompositor::changeWorkspace(const int TARGET_ID, const std::string& TARGET
  */
 void CCompositor::changeToLastWorkspace() {
     // Last workspace is nullptr if no other workspaces have ever been visited.
-    if (m_pLastWorkspaceID != -1) {
-        Debug::log(LOG, "Switching to previous workspace %i", m_pLastWorkspaceID);
+    if (m_iLastWorkspaceID != -1) {
+        Debug::log(LOG, "Switching to previous workspace %i", m_iLastWorkspaceID);
         // TODO: Fix the use of ID as the name; but afaik workspace names are currently broken anyway.
-        changeWorkspace(m_pLastWorkspaceID, std::to_string(m_pLastWorkspaceID));
+        changeWorkspace(m_iLastWorkspaceID, std::to_string(m_iLastWorkspaceID));
     }
     else
         Debug::log(LOG, "Tried to switch to non-existent previous workpace (no history)");

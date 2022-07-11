@@ -82,11 +82,14 @@ public:
     wlr_surface*            m_pLastFocus = nullptr;
     CWindow*                m_pLastWindow = nullptr;
     SMonitor*               m_pLastMonitor = nullptr;
-    int                     m_pLastWorkspaceID = -1; // Start with no last workspace, represented by -1.
+    int                     m_iLastWorkspaceID = -1; // Start with no last workspace, represented by -1.
     
     SSeat                   m_sSeat;
 
     bool                    m_bReadyToProcess = false;
+
+    // Settings
+    bool                    m_bAutoBackAndForth = true;
 
     // ------------------------------------------------- //
 
