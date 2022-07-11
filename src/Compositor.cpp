@@ -1,6 +1,7 @@
 #include "Compositor.hpp"
 #include "src/debug/Log.hpp"
 #include "src/helpers/Workspace.hpp"
+#include <string>
 
 CCompositor::CCompositor() {
     m_szInstanceSignature = GIT_COMMIT_HASH + std::string("_") + std::to_string(time(NULL));
@@ -690,7 +691,7 @@ CWorkspace* CCompositor::getWorkspaceByID(const int& id) {
  * @param TARGET_WORKSPACE_NAME Name of target workspace, only needed if the 
  * workspace doesn't yet exist.
  */
-void CCompositor::changeWorkspace(const int& TARGET_ID, const std::string& TARGET_WORKSPACE_NAME) {
+void CCompositor::changeWorkspace(const int TARGET_ID, const std::string& TARGET_WORKSPACE_NAME) {
 
     SMonitor *const P_SOURCE_MONITOR = getMonitorFromCursor();
 
@@ -699,7 +700,7 @@ void CCompositor::changeWorkspace(const int& TARGET_ID, const std::string& TARGE
 
     // No matter what, remember the previous workspace, since we always switch
     // (to either an existing or new workspace).
-    m_pLastWorkspace = P_SOURCE;
+    m_pLastWorkspaceID = P_SOURCE->m_iID;
 
     // Warp to the target workspace immediately, if it exists.
     if (P_TARGET) {
@@ -813,9 +814,11 @@ void CCompositor::changeWorkspace(const int& TARGET_ID, const std::string& TARGE
  * if no workspaces have yet been visited.
  */
 void CCompositor::changeToLastWorkspace() {
-    if (m_pLastWorkspace) {
-        Debug::log(LOG, "Switching to previous workspace %i", m_pLastWorkspace->m_iID);
-        changeWorkspace(m_pLastWorkspace->m_iID, m_pLastWorkspace->m_szName);
+    // Last workspace is nullptr if no other workspaces have ever been visited.
+    if (m_pLastWorkspaceID != -1) {
+        Debug::log(LOG, "Switching to previous workspace %i", m_pLastWorkspaceID);
+        // TODO: Fix the use of ID as the name; but afaik workspace names are currently broken anyway.
+        changeWorkspace(m_pLastWorkspaceID, std::to_string(m_pLastWorkspaceID));
     }
     else
         Debug::log(LOG, "Tried to switch to non-existent previous workpace (no history)");
