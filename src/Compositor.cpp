@@ -266,6 +266,9 @@ void CCompositor::startCompositor() {
 
     wlr_xcursor_manager_set_cursor_image(m_sWLRXCursorMgr, "left_ptr", m_sWLRCursor);
 
+    // TODO: Is this the ideal place to put this?
+    m_bAutoBackAndForth = g_pConfigManager->getConfigValuePtr("general:auto_back_and_forth")->intValue;
+
     // This blocks until we are done.
     Debug::log(LOG, "Hyprland is ready, running the event loop!");
     wl_display_run(m_sWLDisplay);

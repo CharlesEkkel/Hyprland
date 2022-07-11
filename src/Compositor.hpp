@@ -89,7 +89,7 @@ public:
     bool                    m_bReadyToProcess = false;
 
     // Settings
-    bool                    m_bAutoBackAndForth = true;
+    bool                    m_bAutoBackAndForth = false;
 
     // ------------------------------------------------- //
 
