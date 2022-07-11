@@ -112,6 +112,7 @@ public:
     CWorkspace*             getWorkspaceByID(const int&);
     CWorkspace*             getWorkspaceByName(const std::string&);
     CWorkspace*             getWorkspaceByString(const std::string&);
+    void                    changeWorkspace(const int& targetWorkspaceID, const std::string& targetWorkspaceName);
     void                    sanityCheckWorkspaces();
     int                     getWindowsOnWorkspace(const int&);
     CWindow*                getFirstWindowOnWorkspace(const int&);

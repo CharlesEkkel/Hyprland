@@ -680,6 +680,128 @@ CWorkspace* CCompositor::getWorkspaceByID(const int& id) {
     return nullptr;
 }
 
+/**
+ * @brief Switch to a target workspace, creating a new one on the current 
+ * monitor if required.
+ * 
+ * @param TARGET_ID ID of the target workspace.
+ * @param TARGET_WORKSPACE_NAME Name of target workspace, only needed if the 
+ * workspace doesn't yet exist.
+ */
+void CCompositor::changeWorkspace(const int& TARGET_ID, const std::string& TARGET_WORKSPACE_NAME) {
+
+    SMonitor *const P_SOURCE_MONITOR = getMonitorFromCursor();
+
+    CWorkspace *const P_SOURCE = getWorkspaceByID(P_SOURCE_MONITOR->activeWorkspace);
+    CWorkspace *const P_TARGET = getWorkspaceByID(TARGET_ID);
+
+    // Warp to the target workspace immediately, if it exists.
+    if (P_TARGET) {
+        SMonitor *const P_TARGET_MONITOR = getMonitorFromID(P_TARGET->m_iMonitorID);
+
+        // Don't switch monitors if the target workspace is the special workspace, since
+        // it isn't tied to any particular monitor.
+        if (P_TARGET->m_bIsSpecialWorkspace)
+            P_TARGET->m_iMonitorID = P_TARGET_MONITOR->ID;
+
+        // If it's not visible then make it visible
+        if (!isWorkspaceVisible(P_TARGET->m_iID)) {
+
+            // We only want the target workspace visible, so special workspace can go bye bye.
+            P_TARGET_MONITOR->specialWorkspaceOpen = false;
+
+            // However, if we are switching to the special workspace, then open it, of course!
+            // Otherwise just adjust the active id.
+            if (P_TARGET->m_bIsSpecialWorkspace)
+                P_TARGET_MONITOR->specialWorkspaceOpen = false;
+            else
+                P_TARGET_MONITOR->activeWorkspace = P_TARGET->m_iID;
+
+            // We need to move XWayland windows to narnia or otherwise they will still process our cursor and shit
+            // and that'd be annoying as hell. Doing it for source & target.
+            fixXWaylandWindowsOnWorkspace(P_SOURCE->m_iID);
+            fixXWaylandWindowsOnWorkspace(P_TARGET->m_iID);
+
+            // Start anim on old & new workspace. Gotta do it here and only here, since we don't 
+            // want to anim visible workspaces on other monitors.
+            const auto ANIM_TO_LEFT = P_TARGET->m_iID > P_SOURCE->m_iID;
+            P_SOURCE->startAnim(false, ANIM_TO_LEFT);
+            P_TARGET->startAnim(true, ANIM_TO_LEFT);
+
+            g_pEventManager->postEvent(SHyprIPCEvent{ "workspace", P_TARGET->m_szName });
+        }
+        
+        // Warp the cursor to the middle of a new monitor if necessary.
+        if (P_TARGET_MONITOR->ID != P_SOURCE_MONITOR->ID) {
+            Vector2D middle = P_TARGET_MONITOR->vecPosition + P_TARGET_MONITOR->vecSize / 2.f;
+            wlr_cursor_warp(m_sWLRCursor, nullptr, middle.x, middle.y);
+        }
+
+        // Let WLR know that we've moved.
+        deactivateAllWLRWorkspaces(P_TARGET->m_pWlrHandle);
+        P_TARGET->setActive(true);
+
+        // Recalculate the layout (monitors can have different resolutions)
+        g_pLayoutManager->getCurrentLayout()->recalculateMonitor(P_TARGET->m_iMonitorID);
+
+        Debug::log(LOG, "Switched to workspace %i", P_TARGET->m_iID);
+
+        // Move focus to cursor and mark the whole monitor as dirty!!
+        g_pInputManager->refocus();
+        g_pHyprRenderer->damageMonitor(P_TARGET_MONITOR);
+
+        return;
+    }
+
+    // If above didn't run, target workspace doesn't exist!! So we make it. Ourselves. With a box of scraps.
+
+    // Start animation on the old workspace first.
+    const auto ANIM_TO_LEFT = TARGET_ID > P_SOURCE->m_iID;
+    P_SOURCE->startAnim(false, ANIM_TO_LEFT);
+
+    // Since we're creating a workspace, we're just gonna stay on the same monitor.
+    SMonitor *const P_TARGET_MONITOR = P_SOURCE_MONITOR;
+
+    // Now make the new workspace, using the name parameter that we haven't used yet.
+    const auto P_CREATED_TARGET = 
+        m_vWorkspaces.emplace_back(std::make_unique<CWorkspace>(
+            P_TARGET_MONITOR->ID, TARGET_WORKSPACE_NAME, TARGET_ID == SPECIAL_WORKSPACE_ID)
+        ).get();
+
+    // Start anim on new workspace
+    P_CREATED_TARGET->startAnim(true, ANIM_TO_LEFT);
+
+    // And immediately set name, as WLR requires this.   
+    if (!P_CREATED_TARGET->m_bIsSpecialWorkspace)
+        wlr_ext_workspace_handle_v1_set_name(
+            P_CREATED_TARGET->m_pWlrHandle, P_CREATED_TARGET->m_szName.c_str());
+
+    // Update struct inner values for consistency.
+    P_CREATED_TARGET->m_iID = TARGET_ID; // Is this necessary? Yep.
+    P_CREATED_TARGET->m_iMonitorID = P_TARGET_MONITOR->ID;
+
+    // Let the monitor know the new workpace should be the visible one.
+    // Otherwise, as an empty workspace, it would be immediately destroyed.
+    P_TARGET_MONITOR->specialWorkspaceOpen = false;
+    P_TARGET_MONITOR->activeWorkspace = P_CREATED_TARGET->m_iID;
+
+    // We need to move XWayland windows to narnia or otherwise they will still process our cursor and shit
+    // and that'd be annoying as hell
+    fixXWaylandWindowsOnWorkspace(P_SOURCE->m_iID);
+
+    // Set the target workspace as active, deactivating all others.
+    deactivateAllWLRWorkspaces(P_CREATED_TARGET->m_pWlrHandle);
+    P_CREATED_TARGET->setActive(true);
+
+    // Mark the whole monitor as dirty for re-rendering.
+    g_pHyprRenderer->damageMonitor(P_TARGET_MONITOR);
+
+    g_pEventManager->postEvent(SHyprIPCEvent{ "workspace", P_CREATED_TARGET->m_szName });
+    Debug::log(LOG, "Created and switched to workspace %i", P_CREATED_TARGET->m_iID);
+
+    return;
+}
+
 void CCompositor::sanityCheckWorkspaces() {
     for (auto it = m_vWorkspaces.begin(); it != m_vWorkspaces.end(); ++it) {
         const auto WINDOWSONWORKSPACE = getWindowsOnWorkspace((*it)->m_iID);
